@@ -1,4 +1,4 @@
-# lpm-lib
+# lib-lpm
 
 This library contains all the functionality of the Lua Package Manager.
 
@@ -27,5 +27,5 @@ To integrate the library into your project, you need to follow these steps:
     And then link this library when you compile your project:
 
     ```bash
-    g++ -std=c++11 -Ilib-lpm/include -Llib-lpm/lib -llpm-lib your_program.cpp -llpm-lib
+    g++ -std=c++11 -Ilib-lpm/include -Llib-lpm/lib -llib-lpm your_program.cpp
     ```
