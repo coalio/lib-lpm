@@ -22,7 +22,7 @@ namespace LPM {
         std::string main;
         std::string lua_version;
 
-        std::vector<std::string> dependencies;
+        std::map<std::string, std::string> dependencies;
 
         void load();
     };

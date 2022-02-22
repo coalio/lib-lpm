@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <map>
 #include <string_view>
 #include "packages.h"
 #include "macros.h"
@@ -13,19 +14,19 @@ void LPM::PackagesData::load() {
         LPM_PRINT_ERROR("Failed to parse: " << this->path);
     }
 
-    this->name = toml::find_or(data, "project.name", "");
-    this->version = toml::find_or(data, "project.version", "");
-    this->description = toml::find_or(data, "project.description", "");
-    this->author = toml::find_or(data, "project.author", "");
-    this->license = toml::find_or(data, "project.license", "");
-    this->homepage = toml::find_or(data, "project.homepage", "");
-    this->repository = toml::find_or(data, "project.repository", "");
-    this->main = toml::find_or(data, "project.main", "");
-    this->lua_version = toml::find_or(data, "project.lua_version", "");
+    this->name = toml::find_or(data, "project", "name", "");
+    this->version = toml::find_or(data, "project", "version", "");
+    this->description = toml::find_or(data, "project", "description", "");
+    this->author = toml::find_or(data, "project", "author", "");
+    this->license = toml::find_or(data, "project", "license", "");
+    this->homepage = toml::find_or(data, "project", "homepage", "");
+    this->repository = toml::find_or(data, "project", "repository", "");
+    this->main = toml::find_or(data, "project", "main", "");
+    this->lua_version = toml::find_or(data, "project", "lua_version", "");
 
     if (data.contains("dependencies")) {
         this->dependencies = toml::find<
-            std::vector<std::string>
+            std::map<std::string, std::string>
         >(data, "dependencies");
     }
 
@@ -43,6 +44,6 @@ void LPM::PackagesData::load() {
     LPM_PRINT("this->lua_version : " << this->lua_version);
     LPM_PRINT("this->dependencies.size() : " << this->dependencies.size());
     for (auto& dependency : this->dependencies) {
-        LPM_PRINT("this->dependencies : " << dependency);
+        LPM_PRINT("this->dependencies : " << dependency.first << " " << dependency.second);
     }
 }

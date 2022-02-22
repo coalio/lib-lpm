@@ -1,6 +1,8 @@
 #pragma once
 #include <iostream>
 
+#define LPM_DEFAULT_PACKAGES_PATH "packages.toml"
+
 #ifndef LPM_SHOULD_PRINT_ERRORS
     #define LPM_SHOULD_PRINT_ERRORS 1
 #endif
