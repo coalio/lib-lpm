@@ -34,3 +34,30 @@
     #define LPM_PRINT_DEBUG(msg)
     #define LPM_PRINT(msg)
 #endif
+
+// Define paths for Linux and Unix-like systems
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+    #define LPM_PATH_SEPARATOR "/"
+#else // Windows
+    #define LPM_PATH_SEPARATOR "\\"
+#endif
+
+#if defined(__windows__) || defined(_WIN32)
+    // TODO: Make LPM::Env::fill_env_vars work on Windows
+    #define LPM_CONFIG_PATHS                                                     \
+        "%LPM_ROOT%" LPM_PATH_SEPARATOR "lpm.toml",                              \
+        "%USERPROFILE%" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml", \
+        "lpm.toml"
+#elif defined(__APPLE__)
+    #define LPM_CONFIG_PATHS                                                     \
+        "${LPM_ROOT}" LPM_PATH_SEPARATOR "lpm.toml",                               \
+        "${HOME}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",         \
+        "/Users/${USER}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",  \
+        "./lpm.toml"
+#else // Linux/Unix
+    #define LPM_CONFIG_PATHS                                                     \
+        "${LPM_ROOT}" LPM_PATH_SEPARATOR "lpm.toml",                               \
+        "${HOME}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",         \
+        "/home/${USER}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",   \
+        "./lpm.toml"
+#endif

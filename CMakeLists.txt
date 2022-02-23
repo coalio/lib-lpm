@@ -2,6 +2,7 @@
 # You can compile this lib independently and use it in your own projects.
 include_directories(./lpm ./dependencies)
 add_library(lpm-lib
-    lpm/packages.cpp
+    lpm/manifests.cpp
     lpm/pathfinder.cpp
+    lpm/env.cpp
 )
