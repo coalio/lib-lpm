@@ -66,6 +66,25 @@ void LPM::Manifests::Config::load() {
 
     this->db_backend = toml::find_or(data, "lpm", "db_backend", "");
     this->packages_db = toml::find_or(data, "lpm", "packages_db", "");
+    this->repositories_cache = toml::find_or(data, "lpm", "repositories_cache", "");
+
+    std::string missing_values = "";
+
+    if (this->db_backend == "") {
+        missing_values = "db_backend";
+    }
+
+    if (this->packages_db == "") {
+        missing_values += ", packages_db";
+    }
+
+    if (this->repositories_cache == "") {
+        missing_values += ", repositories_cache";
+    }
+
+    if (missing_values != "") {
+        throw std::runtime_error("Missing values in " + this->path + ": " + missing_values);
+    }
 
     if (data.contains("luas")) {
         this->luas = toml::find<

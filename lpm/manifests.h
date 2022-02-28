@@ -30,7 +30,8 @@ namespace LPM::Manifests {
         }
 
         std::string
-            path, db_backend, packages_db;
+            path, db_backend, packages_db,
+            repositories_cache;
 
         std::map<std::string, std::string> luas;
         std::map<

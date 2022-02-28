@@ -1,4 +1,5 @@
 #include "env.h"
+#include "macros.h"
 
 std::string LPM::Env::get(std::string key, std::string default_value ) {
     const char* value = std::getenv(key.c_str());
@@ -19,7 +20,7 @@ int LPM::Env::get(std::string key, int default_value) {
     return std::atoi(value);
 }
 
-std::string LPM::Env::fill_env_vars(std::string path) {
+std::string LPM::Env::fill_env_vars(std::string& path, bool replace_empty) {
     std::string result = path;
 
     // Replace ${key} with the value of the environment variable named key
@@ -32,9 +33,11 @@ std::string LPM::Env::fill_env_vars(std::string path) {
 
         std::string key = result.substr(start_pos + 2, end_pos - start_pos - 2);
         std::string value = get(key, "");
-        result.replace(start_pos, end_pos - start_pos + 1, value);
+        if (value == "" and replace_empty || value != "") {
+            result.replace(start_pos, end_pos - start_pos + 1, value);
+        }
 
-        start_pos = result.find("${", start_pos + value.length());
+        start_pos = result.find("${", start_pos + value.length() + 1);
     }
 
     return result;

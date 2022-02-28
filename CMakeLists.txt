@@ -4,5 +4,7 @@ include_directories(./lpm ./dependencies)
 add_library(lpm-lib
     lpm/manifests.cpp
     lpm/pathfinder.cpp
+    lpm/requests.cpp
+    lpm/utils.cpp
     lpm/env.cpp
 )

@@ -8,15 +8,13 @@ std::string LPM::PathFinder::locate_config() {
         LPM_CONFIG_PATHS
     };
 
-    for (const auto& raw_path : PATHS) {
+    for (auto raw_path : PATHS) {
         std::string path = LPM::Env::fill_env_vars(raw_path);
         LPM_PRINT_DEBUG("Looking in path: " << path);
         std::ifstream file(path);
 
         if (file.good()) {
             return path;
-        } else {
-            // std::cout << "Didnt find " << path << std::endl;
         }
     }
 
