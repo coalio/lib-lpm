@@ -27,5 +27,5 @@ To integrate the library into your project, you need to follow these steps:
     And then link this library when you compile your project:
 
     ```bash
-    g++ -std=c++11 -Ilib-lpm/include -llib-lpm your_program.cpp
+    g++ -std=c++11 -Ilib-lpm/lpm -llib-lpm your_program.cpp
     ```
