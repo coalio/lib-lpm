@@ -1,7 +1,11 @@
 #pragma once
 #include <iostream>
 
-#define LPM_DEFAULT_PACKAGES_PATH "packages.toml"
+#define LPM_PACKAGES_MANIFEST_NAME "packages.toml"
+#define LPM_MODULE_MANIFEST_NAME "module.toml"
+#define LPM_DEFAULT_LOCAL_MODULES_PATH "lpm_modules/${module_name}"
+#define LPM_DEFAULT_LOCAL_MODULES_BIN "lpm_modules/.modules/${binary_name}"
+#define LPM_DEFAULT_LOCAL_MODULES_INTEGRITY "lpm_modules/.modules/module_integrity.toml"
 
 #ifndef LPM_SHOULD_PRINT_ERRORS
     #define LPM_SHOULD_PRINT_ERRORS 1
@@ -44,20 +48,24 @@
 
 #if defined(__windows__) || defined(_WIN32)
     // TODO: Make LPM::Env::fill_env_vars work on Windows
-    #define LPM_CONFIG_PATHS                                                     \
-        "%LPM_ROOT%" LPM_PATH_SEPARATOR "lpm.toml",                              \
-        "%USERPROFILE%" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml", \
+    #define LPM_CONFIG_PATHS                                                       \
+        "%LPM_ROOT%" LPM_PATH_SEPARATOR "lpm.toml",                                \
+        "%USERPROFILE%" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",   \
         "lpm.toml"
 #elif defined(__APPLE__)
-    #define LPM_CONFIG_PATHS                                                     \
+    #define LPM_CONFIG_PATHS                                                       \
         "${LPM_ROOT}" LPM_PATH_SEPARATOR "lpm.toml",                               \
         "${HOME}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",         \
         "/Users/${USER}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",  \
         "./lpm.toml"
 #else // Linux/Unix
-    #define LPM_CONFIG_PATHS                                                     \
+    #define LPM_CONFIG_PATHS                                                       \
         "${LPM_ROOT}" LPM_PATH_SEPARATOR "lpm.toml",                               \
         "${HOME}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",         \
         "/home/${USER}" LPM_PATH_SEPARATOR ".lpm" LPM_PATH_SEPARATOR "lpm.toml",   \
         "./lpm.toml"
 #endif
+
+// Specific macros
+
+#define LPM_ZIP_BUFFER_SIZE 1024

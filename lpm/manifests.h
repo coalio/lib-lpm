@@ -20,6 +20,7 @@ namespace LPM::Manifests {
         std::map<std::string, std::string> dependencies;
 
         void load();
+        void save();
     };
 
     class Config {
@@ -31,7 +32,8 @@ namespace LPM::Manifests {
 
         std::string
             path, db_backend, packages_db,
-            repositories_cache;
+            repositories_cache, packages_cache,
+            modules_path;
 
         std::map<std::string, std::string> luas;
         std::map<
@@ -40,11 +42,14 @@ namespace LPM::Manifests {
         > repositories;
 
         void load();
+        void save();
     };
 
     class Repository {
-    private:
+    public:
         struct Package {
+            Package() = default;
+
             Package(
                 std::string _name,
                 std::string _summary,
@@ -58,7 +63,7 @@ namespace LPM::Manifests {
             std::string name, summary, package_type;
             std::map<std::string, std::string> versions;
         };
-    public:
+
         Repository(const std::string& path) {
             this->path = path;
             this->load();
@@ -70,5 +75,6 @@ namespace LPM::Manifests {
         std::map<std::string, Repository::Package> packages;
 
         void load();
+        void save();
     };
 }

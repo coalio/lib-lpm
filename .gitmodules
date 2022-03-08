@@ -1,3 +1,6 @@
 [submodule "dependencies/toml11"]
 	path = dependencies/toml11
 	url = https://github.com/ToruNiina/toml11
+[submodule "dependencies/libzip"]
+	path = dependencies/libzip
+	url = https://github.com/nih-at/libzip

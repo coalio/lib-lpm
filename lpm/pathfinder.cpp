@@ -9,10 +9,12 @@ std::string LPM::PathFinder::locate_config() {
     };
 
     for (auto raw_path : PATHS) {
-        std::string path = LPM::Env::fill_env_vars(raw_path);
-        LPM_PRINT_DEBUG("Looking in path: " << path);
-        std::ifstream file(path);
+        std::string path = raw_path;
+        LPM::Env::fill_env_vars(path);
 
+        LPM_PRINT_DEBUG("Looking in path: " << path);
+
+        std::ifstream file(path);
         if (file.good()) {
             return path;
         }

@@ -20,25 +20,21 @@ int LPM::Env::get(std::string key, int default_value) {
     return std::atoi(value);
 }
 
-std::string LPM::Env::fill_env_vars(std::string& path, bool replace_empty) {
-    std::string result = path;
-
+void LPM::Env::fill_env_vars(std::string& path, bool replace_empty) {
     // Replace ${key} with the value of the environment variable named key
-    size_t start_pos = result.find("${");
+    size_t start_pos = path.find("${");
     while (start_pos != std::string::npos) {
-        size_t end_pos = result.find("}", start_pos);
+        size_t end_pos = path.find("}", start_pos);
         if (end_pos == std::string::npos) {
             break;
         }
 
-        std::string key = result.substr(start_pos + 2, end_pos - start_pos - 2);
+        std::string key = path.substr(start_pos + 2, end_pos - start_pos - 2);
         std::string value = get(key, "");
         if (value == "" and replace_empty || value != "") {
-            result.replace(start_pos, end_pos - start_pos + 1, value);
+            path.replace(start_pos, end_pos - start_pos + 1, value);
         }
 
-        start_pos = result.find("${", start_pos + value.length() + 1);
+        start_pos = path.find("${", start_pos + value.length() + 1);
     }
-
-    return result;
 }

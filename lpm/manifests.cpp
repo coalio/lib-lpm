@@ -3,19 +3,13 @@
 #include "toml11/toml.hpp"
 
 void LPM::Manifests::Packages::load() {
-    toml::value data;
     std::ifstream file(this->path);
 
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open package manifest file: " + this->path);
     }
 
-    try {
-        data = toml::parse(this->path);
-    } catch (...) {
-        throw std::runtime_error("Failed to parse: " + this->path);
-    }
-
+    toml::value data = toml::parse(this->path);
     this->name = toml::find_or(data, "project", "name", "");
     this->version = toml::find_or(data, "project", "version", "");
     this->description = toml::find_or(data, "project", "description", "");
@@ -50,48 +44,90 @@ void LPM::Manifests::Packages::load() {
     }
 }
 
-void LPM::Manifests::Config::load() {
+void LPM::Manifests::Packages::save() {
+    std::ofstream file(this->path);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open packages file: " + this->path);
+    }
+
     toml::value data;
+
+    data["project"] = toml::value {
+        {"name", this->name},
+        {"version", this->version},
+        {"description", this->description},
+        {"author", this->author},
+        {"license", this->license},
+        {"homepage", this->homepage},
+        {"repository", this->repository},
+        {"main", this->main},
+        {"lua_version", this->lua_version}
+    };
+
+    if (this->dependencies.size() > 0) {
+        data["dependencies"] = this->dependencies;
+    }
+
+    try {
+        file << data;
+    } catch (...) {
+        throw std::runtime_error("Failed to write to file: " + this->path);
+    }
+}
+
+void LPM::Manifests::Config::load() {
     std::ifstream file(this->path);
 
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open config file: " + this->path);
     }
 
-    try {
-        data = toml::parse(this->path);
-    } catch (...) {
-        throw std::runtime_error("Failed to parse: " + this->path);
-    }
-
+    toml::value data = toml::parse(this->path);
     this->db_backend = toml::find_or(data, "lpm", "db_backend", "");
     this->packages_db = toml::find_or(data, "lpm", "packages_db", "");
     this->repositories_cache = toml::find_or(data, "lpm", "repositories_cache", "");
+    this->packages_cache = toml::find_or(data, "lpm", "packages_cache", "");
+    this->modules_path = toml::find_or(data, "lpm", "modules_path", "");
 
-    std::string missing_values = "";
+    std::string missing_keys = "";
 
     if (this->db_backend == "") {
-        missing_values = "db_backend";
+        missing_keys += " db_backend";
     }
 
     if (this->packages_db == "") {
-        missing_values += ", packages_db";
+        missing_keys += " packages_db";
     }
 
     if (this->repositories_cache == "") {
-        missing_values += ", repositories_cache";
+        missing_keys += " repositories_cache";
     }
 
-    if (missing_values != "") {
-        throw std::runtime_error("Missing values in " + this->path + ": " + missing_values);
+    if (this->packages_cache == "") {
+        missing_keys += " packages_cache";
+    }
+
+    if (this->modules_path == "") {
+        missing_keys += " modules_path";
+    }
+
+    if (missing_keys != "") {
+        throw std::runtime_error(
+            "Your 'lpm' section in your lpm.toml configuration file is missing the following parameters:" + missing_keys
+        );
     }
 
     if (data.contains("luas")) {
         this->luas = toml::find<
             std::map<std::string, std::string>
         >(data, "luas");
+
+        if (!this->luas.contains("default")) {
+            throw std::runtime_error("You must specify a 'default' Lua interpreter in your lpm.toml file, under 'luas' section.");
+        }
     } else {
-        throw std::runtime_error("No Lua interpreters specified in the lpm.toml file.");
+        throw std::runtime_error("No Lua interpreters specified in the lpm.toml file. Specify them using the 'luas' section");
     }
 
     if (data.contains("sources")) {
@@ -123,20 +159,51 @@ void LPM::Manifests::Config::load() {
     }
 }
 
-void LPM::Manifests::Repository::load() {
+void LPM::Manifests::Config::save() {
+    std::ofstream file(this->path);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + this->path);
+    }
+
     toml::value data;
+
+    data["lpm"] = toml::value {
+        {"db_backend", this->db_backend},
+        {"packages_db", this->packages_db},
+        {"repositories_cache", this->repositories_cache},
+        {"packages_cache", this->packages_cache},
+        {"modules_path", this->modules_path}
+    };
+
+    data["luas"] = toml::value{};
+    for (auto& lua : this->luas) {
+        data["luas"][lua.first] = lua.second;
+    }
+
+    data["sources"] = toml::value{};
+    for (auto& repository : this->repositories) {
+        data["sources"][repository.first] = toml::value{};
+        for (auto& source : repository.second) {
+            data["sources"][repository.first][source.first] = source.second;
+        }
+    }
+
+    try {
+        file << data;
+    } catch (...) {
+        throw std::runtime_error("Failed to write to file: " + this->path);
+    }
+}
+
+void LPM::Manifests::Repository::load() {
     std::ifstream file(this->path);
 
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open repository file: " + this->path);
     }
 
-    try {
-        data = toml::parse(this->path);
-    } catch (...) {
-        throw std::runtime_error("Failed to parse: " + this->path);
-    }
-
+    toml::value data = toml::parse(this->path);
     this->name = toml::find_or(data, "repository", "name", "");
     this->summary = toml::find_or(data, "repository", "summary", "");
 
@@ -177,5 +244,39 @@ void LPM::Manifests::Repository::load() {
         for (auto& version : package.second.versions) {
             LPM_PRINT_DEBUG("this->packages : " << package.first << "->versions : " << version.first << " " << version.second);
         }
+    }
+}
+
+void LPM::Manifests::Repository::save() {
+    std::ofstream file(this->path);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open repository file: " + this->path);
+    }
+
+    toml::value data;
+
+    data["repository"] = toml::value {
+        {"name", this->name},
+        {"summary", this->summary}
+    };
+
+    data["packages"] = toml::value{};
+    for (auto& package : this->packages) {
+        data["packages"][package.first] = toml::value {
+            {"summary", package.second.summary},
+            {"package_type", package.second.package_type}
+        };
+
+        data["packages"][package.first]["versions"] = toml::value{};
+        for (auto& version : package.second.versions) {
+            data["packages"][package.first]["versions"][version.first] = version.second;
+        }
+    }
+
+    try {
+        file << data;
+    } catch (...) {
+        throw std::runtime_error("Failed to write to file: " + this->path);
     }
 }
