@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <functional>
+#include "macros.h"
 
 namespace LPM {
     // Call a destructor when something goes out of scope
@@ -13,7 +14,9 @@ namespace LPM {
     public:
         scope_destructor(T object, std::function<void(T)> destructor)
         : _object(object), _destructor(destructor) {
-            LPM_PRINT_DEBUG("scope_destructor initialized for object " << object);
+            if (_object != nullptr) {
+                LPM_PRINT_DEBUG("scope_destructor initialized for object " << _object);
+            }
         }
 
         ~scope_destructor() {
@@ -22,10 +25,13 @@ namespace LPM {
             }
 
             _destructor(_object);
-            LPM_PRINT_DEBUG("scope_destructor called _destructor on " << _object);
+
+            if (_object != nullptr) {
+                LPM_PRINT_DEBUG("scope_destructor initialized for object " << _object);
+            }
         }
 
-        T& get() { return _object; }
-        void cancel() { cancelled = true; }
+        inline T& get() { return _object; }
+        inline void cancel() { cancelled = true; }
     };
 }

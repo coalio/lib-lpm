@@ -20,27 +20,16 @@ void LPM::Manifests::Packages::load() {
     this->main = toml::find_or(data, "project", "main", "");
     this->lua_version = toml::find_or(data, "project", "lua_version", "");
 
+    if (this->lua_version.empty()) {
+        throw std::runtime_error(
+            "No project.lua_version field in your project manifest"
+        );
+    }
+
     if (data.contains("dependencies")) {
         this->dependencies = toml::find<
             std::map<std::string, std::string>
         >(data, "dependencies");
-    }
-
-    LPM_PRINT_DEBUG("Loaded data for project: " << this->name);
-
-    // print all of the parsed data
-    LPM_PRINT_DEBUG("this->name : " << this->name);
-    LPM_PRINT_DEBUG("this->version : " << this->version);
-    LPM_PRINT_DEBUG("this->description : " << this->description);
-    LPM_PRINT_DEBUG("this->author : " << this->author);
-    LPM_PRINT_DEBUG("this->license : " << this->license);
-    LPM_PRINT_DEBUG("this->homepage : " << this->homepage);
-    LPM_PRINT_DEBUG("this->repository : " << this->repository);
-    LPM_PRINT_DEBUG("this->main : " << this->main);
-    LPM_PRINT_DEBUG("this->lua_version : " << this->lua_version);
-    LPM_PRINT_DEBUG("this->dependencies.size() : " << this->dependencies.size());
-    for (auto& dependency : this->dependencies) {
-        LPM_PRINT_DEBUG("this->dependencies : " << dependency.first << " " << dependency.second);
     }
 }
 
@@ -76,7 +65,83 @@ void LPM::Manifests::Packages::save() {
     }
 }
 
-void LPM::Manifests::Config::load() {
+void LPM::Manifests::Package::load() {
+    std::ifstream file(this->path);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open package manifest file: " + this->path);
+    }
+
+    toml::value data = toml::parse(this->path);
+    this->name = toml::find_or(data, "package", "name", "");
+    this->version = toml::find_or(data, "package", "version", "");
+    this->description = toml::find_or(data, "package", "description", "");
+    this->license = toml::find_or(data, "package", "license", "");
+    this->repository = toml::find_or(data, "package", "repository", "");
+    this->maintainer = toml::find_or(data, "package", "maintainer", "");
+
+    if (data.contains("source")) {
+        this->source.url = toml::find_or(data, "source", "url", "");
+        this->source.package_type = toml::find_or(data, "source", "package_type", "");
+    }
+
+    if (data.contains("run")) {
+        this->run.main = toml::find_or(data, "run", "main", "");
+        this->run.lua_version = toml::find<std::vector<std::string>>(data, "run", "lua_version");
+    }
+
+    if (data.contains("support")) {
+        this->support.lua_version = toml::find<std::vector<std::string>>(data, "support", "lua_version");
+        this->support.platform = toml::find<std::vector<std::string>>(data, "support", "platform");
+    }
+
+    if (data.contains("dependencies")) {
+        this->dependencies = toml::find<
+            std::map<std::string, std::string>
+        >(data, "dependencies");
+    }
+}
+
+void LPM::Manifests::Package::save() {
+    std::ofstream file(this->path);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open package manifest file: " + this->path);
+    }
+
+    toml::value data;
+
+    data["package"] = toml::value {
+        {"name", this->name},
+        {"version", this->version},
+        {"description", this->description},
+        {"license", this->license},
+        {"repository", this->repository},
+        {"maintainer", this->maintainer}
+    };
+
+    if (this->run.main.size() > 0) {
+        data["run"] = toml::value {
+            {"main", this->run.main},
+            {"lua_version", this->run.lua_version}
+        };
+    }
+
+    if (this->support.lua_version.size() > 0) {
+        data["support"] = toml::value {
+            {"lua_version", this->support.lua_version},
+            {"platform", this->support.platform}
+        };
+    }
+
+    try {
+        file << data;
+    } catch (...) {
+        throw std::runtime_error("Failed to write to file: " + this->path);
+    }
+}
+
+void LPM::Manifests::Config::load(bool ignore_missing) {
     std::ifstream file(this->path);
 
     if (!file.is_open()) {
@@ -88,7 +153,7 @@ void LPM::Manifests::Config::load() {
     this->packages_db = toml::find_or(data, "lpm", "packages_db", "");
     this->repositories_cache = toml::find_or(data, "lpm", "repositories_cache", "");
     this->packages_cache = toml::find_or(data, "lpm", "packages_cache", "");
-    this->modules_path = toml::find_or(data, "lpm", "modules_path", "");
+    this->packages_path = toml::find_or(data, "lpm", "packages_path", "");
 
     std::string missing_keys = "";
 
@@ -108,13 +173,13 @@ void LPM::Manifests::Config::load() {
         missing_keys += " packages_cache";
     }
 
-    if (this->modules_path == "") {
-        missing_keys += " modules_path";
+    if (this->packages_path == "") {
+        missing_keys += " packages_path";
     }
 
-    if (missing_keys != "") {
+    if (missing_keys != "" && !ignore_missing) {
         throw std::runtime_error(
-            "Your 'lpm' section in your lpm.toml configuration file is missing the following parameters:" + missing_keys
+            "The 'lpm' section in your lpm.toml configuration file is missing the following keys:" + missing_keys
         );
     }
 
@@ -123,39 +188,11 @@ void LPM::Manifests::Config::load() {
             std::map<std::string, std::string>
         >(data, "luas");
 
-        if (!this->luas.contains("default")) {
+        if (!this->luas.contains("default") && !ignore_missing) {
             throw std::runtime_error("You must specify a 'default' Lua interpreter in your lpm.toml file, under 'luas' section.");
         }
-    } else {
+    } else if (!ignore_missing) {
         throw std::runtime_error("No Lua interpreters specified in the lpm.toml file. Specify them using the 'luas' section");
-    }
-
-    if (data.contains("sources")) {
-        this->repositories = toml::find<
-            std::map<
-                std::string,
-                std::map<std::string, std::string>
-            >
-        >(data, "sources");
-    } else {
-        throw std::runtime_error("No repositories specified in the lpm.toml file.");
-    }
-
-    LPM_PRINT_DEBUG("Loaded data for config: " << this->path);
-
-    // print all of the parsed data
-    LPM_PRINT_DEBUG("this->db_backend : " << this->db_backend);
-    LPM_PRINT_DEBUG("this->packages_db : " << this->packages_db);
-    LPM_PRINT_DEBUG("this->luas.size() : " << this->luas.size());
-    for (auto& lua : this->luas) {
-        LPM_PRINT_DEBUG("this->luas : " << lua.first << " " << lua.second);
-    }
-    LPM_PRINT_DEBUG("this->repositories.size() : " << this->repositories.size());
-    for (auto& repository : this->repositories) {
-        LPM_PRINT_DEBUG("this->repositories : " << repository.first);
-        for (auto& source : repository.second) {
-            LPM_PRINT_DEBUG("this->repositories : " << source.first << " " << source.second);
-        }
     }
 }
 
@@ -173,20 +210,12 @@ void LPM::Manifests::Config::save() {
         {"packages_db", this->packages_db},
         {"repositories_cache", this->repositories_cache},
         {"packages_cache", this->packages_cache},
-        {"modules_path", this->modules_path}
+        {"packages_path", this->packages_path}
     };
 
     data["luas"] = toml::value{};
     for (auto& lua : this->luas) {
         data["luas"][lua.first] = lua.second;
-    }
-
-    data["sources"] = toml::value{};
-    for (auto& repository : this->repositories) {
-        data["sources"][repository.first] = toml::value{};
-        for (auto& source : repository.second) {
-            data["sources"][repository.first][source.first] = source.second;
-        }
     }
 
     try {
@@ -223,26 +252,9 @@ void LPM::Manifests::Repository::load() {
                 Repository::Package {
                     package.first,
                     toml::find_or(package.second, "summary", ""),
-                    toml::find_or(package.second, "package_type", ""),
                     versions
                 }
             );
-        }
-    }
-
-
-    LPM_PRINT_DEBUG("Loaded data for repository: " << this->name);
-
-    // print all of the parsed data
-    LPM_PRINT_DEBUG("this->name : " << this->name);
-    LPM_PRINT_DEBUG("this->summary : " << this->summary);
-    LPM_PRINT_DEBUG("this->packages.size() : " << this->packages.size());
-    for (auto& package : this->packages) {
-        LPM_PRINT_DEBUG("this->packages : " << package.first << " " << package.second.summary);
-        LPM_PRINT_DEBUG("this->packages : " << package.first << "->package_type : " << package.second.package_type);
-        // print package versions
-        for (auto& version : package.second.versions) {
-            LPM_PRINT_DEBUG("this->packages : " << package.first << "->versions : " << version.first << " " << version.second);
         }
     }
 }
@@ -264,8 +276,7 @@ void LPM::Manifests::Repository::save() {
     data["packages"] = toml::value{};
     for (auto& package : this->packages) {
         data["packages"][package.first] = toml::value {
-            {"summary", package.second.summary},
-            {"package_type", package.second.package_type}
+            {"summary", package.second.summary}
         };
 
         data["packages"][package.first]["versions"] = toml::value{};

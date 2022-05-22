@@ -18,6 +18,10 @@ namespace LPM::Utils {
         const std::string& content
     );
 
+    bool create_directories(
+        const std::string& path
+    );
+
     bool unzip(
         zip* zip_file,
         const std::string& dest_path,
@@ -34,5 +38,10 @@ namespace LPM::Utils {
         char delimiter,
         size_t start_index = 0,
         size_t end_index = std::string::npos
+    );
+
+    std::string repeat(
+        const std::string& str,
+        size_t count
     );
 }

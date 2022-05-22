@@ -47,26 +47,13 @@ bool LPM::Utils::write_file(
     // Split path into segments
     std::vector<std::string> segments = split(path, '/');
 
-    // Print segments
-    for (const auto& segment : segments) {
-        LPM_PRINT_DEBUG("Segment: " << segment);
-    }
-    // Check if all segments except the last one exist
-    for (size_t i =  0; i < segments.size() - 1; i++) {
-        std::string segment = segments[i];
-        if (segment == "") {
-            continue;
-        }
+    // Create directories
+    std::string dir_path = join(segments, '/', 0, segments.size() - 2);
+    LPM_PRINT_DEBUG("Creating directory " << dir_path << " for file " << path);
 
-        std::string curr_path = join(segments, '/', 0, i);
-        LPM_PRINT_DEBUG("Checking if directory " << curr_path << " exists");
-        if (!fs::exists(curr_path)) {
-            LPM_PRINT_DEBUG("Creating directory " << curr_path);
-            if (!fs::create_directory(curr_path)) {
-                LPM_PRINT_DEBUG("Failed to create directory " << curr_path);
-                return false;
-            }
-        }
+    if (!create_directories(dir_path)) {
+        LPM_PRINT_ERROR("Failed to create directories for " << path);
+        return false;
     }
 
     std::ofstream file(path);
@@ -84,6 +71,23 @@ bool LPM::Utils::write_file(
     file.close();
 
     LPM_PRINT_DEBUG("Wrote file " << path);
+
+    return true;
+}
+
+bool LPM::Utils::create_directories(const std::string& path) {
+    LPM_PRINT_DEBUG("Creating directory " << path);
+    if (fs::exists(path)) {
+        LPM_PRINT_DEBUG("Directory " << path << " already exists");
+        return true;
+    }
+
+    if (!fs::create_directories(path)) {
+        LPM_PRINT_DEBUG("Failed to create directory " << path);
+        return false;
+    }
+
+    LPM_PRINT_DEBUG("Created directory " << path);
 
     return true;
 }
@@ -135,65 +139,81 @@ bool LPM::Utils::unzip(
         // Create the full path
         std::string file_path = dest_path + "/" + file_name;
 
-        // Create an empty file at the path
-        // (we use write_file because it handles directories)
-         if (!write_file(file_path, "")) {
-            error = "Failed to create file at path: " + file_path;
+        // Check if the current file is a directory (ends with /)
+        bool is_directory = file_path.back() == '/';
 
-            // Close the zip file entry
-            zip_fclose(zip_file_entry);
+        LPM_PRINT_DEBUG("File path: " << file_path);
+        LPM_PRINT_DEBUG("Is directory?: " << is_directory);
 
-            return false;
-         }
+        if (is_directory) {
+            // Create the directory
+            if (!create_directories(file_path)) {
+                error = "Failed to create directory at path: " + file_path;
 
-        // Open the file via index
-        struct zip_file* current_file = zip_fopen_index(zip_file, i, 0);
-        if (!current_file) {
-            error = "Failed to open file at path: " + file_path;
+                // Close the zip file entry
+                zip_fclose(zip_file_entry);
 
-            // Close the zip file entry
-            zip_fclose(zip_file_entry);
+                return false;
+            }
+        } else {
+            if (!write_file(file_path, "")) {
+                error = "Failed to create file at path: " + file_path;
 
-            return false;
-        }
+                // Close the zip file entry
+                zip_fclose(zip_file_entry);
 
-        // Open a file stream to the file_path
-        std::ofstream file(file_path, std::ios::app);
-        if (!file.is_open()) {
-            error = "Failed to open file: " + file_path;
+                return false;
+            }
 
-            // Close the current file
-            zip_fclose(current_file);
+            // Open the file via index
+            struct zip_file* current_file = zip_fopen_index(zip_file, i, 0);
+            if (!current_file) {
+                error = "Failed to open file at path: " + file_path;
 
-            return false;
-        }
+                // Close the zip file entry
+                zip_fclose(zip_file_entry);
 
-        // Transfer data from the zip file to the file stream
-        int bytes_read = 0;
-        while (
-            // We cast buffer to a void pointer to allow libzip to perform
-            // casting of the buffer to any other data type
-            (bytes_read = zip_fread(current_file, static_cast<void*>(buffer), LPM_ZIP_BUFFER_SIZE))
-            > 0
-        ) {
-            // Write the buffer to the file
-            try {
-                file.write(buffer, bytes_read);
-            } catch (...) {
-                error = "Failed to write to file: " + file_path;
+                return false;
+            }
+
+            // Open a file stream to the file_path
+            std::ofstream file(file_path, std::ios::app);
+            if (!file.is_open()) {
+                error = "Failed to open file: " + file_path;
 
                 // Close the current file
                 zip_fclose(current_file);
 
                 return false;
             }
+
+            // Transfer data from the zip file to the file stream
+            int bytes_read = 0;
+            while (
+                // We cast buffer to a void pointer to allow libzip to perform
+                // casting of the buffer to any other data type
+                (bytes_read = zip_fread(current_file, static_cast<void*>(buffer), LPM_ZIP_BUFFER_SIZE))
+                > 0
+            ) {
+                // Write the buffer to the file
+                try {
+                    file.write(buffer, bytes_read);
+                } catch (...) {
+                    error = "Failed to write to file: " + file_path;
+
+                    // Close the current file
+                    zip_fclose(current_file);
+
+                    return false;
+                }
+            }
+
+            // Finally close the file
+            file.close();
+
+            // Close the current file
+            zip_fclose(current_file);
         }
-
-        // Finally close the file
-        file.close();
-
-        // Close the current file
-        zip_fclose(current_file);
 
         // Close the zip file entry
         zip_fclose(zip_file_entry);
@@ -234,17 +254,28 @@ std::string LPM::Utils::join(
         end_index = segments.size();
     }
 
-    LPM_PRINT_DEBUG("Joining segments: " << start_index << " - " << end_index);
-
     std::string result = "";
     for (size_t i = start_index; i < end_index + 1; i++) {
-        LPM_PRINT_DEBUG("Segment: " << segments[i]);
         result += segments[i];
 
         // Don't add the delimiter to the last segment
         if (i != end_index) {
             result += delimiter;
         }
+    }
+
+    return result;
+}
+
+std::string LPM::Utils::repeat(
+    const std::string& str,
+    size_t count
+) {
+    std::string result = "";
+    result.reserve(str.size() * count);
+
+    for (size_t i = 0; i < count; i++) {
+        result += str;
     }
 
     return result;

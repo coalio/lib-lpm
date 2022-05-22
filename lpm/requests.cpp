@@ -13,7 +13,7 @@ LPM::Requests::Response LPM::Requests::get(std::string url, CURL* curl_handle) {
     curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "lpm-agent/1.0");
     curl_easy_perform(curl_handle);
 
     // Get status code
