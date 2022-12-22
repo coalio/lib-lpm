@@ -46,8 +46,10 @@ LPM::Repositories::get_repositories(DB::SQLite3& db_connection) {
     // reusing the same database connection
     std::vector<std::map<std::string, std::string>> repositories;
 
-    db_connection.execute(
-        "SELECT * FROM repositories;",
+    db_connection.prepare(
+        "SELECT * FROM repositories;"
+    )
+    .execute(
         [&] (sqlite3_stmt* result) {
             int column_count = sqlite3_column_count(result);
             repositories.emplace_back();
@@ -75,11 +77,10 @@ void LPM::Repositories::update_repository_cache(
     const std::string& repository_cache
 ) {
     // Update the repository cache
-    db_connection.execute(
-        "UPDATE repositories SET cache = ? WHERE id = ?;",
-        [&] (sqlite3_stmt* statement) {
-            sqlite3_bind_text(statement, 1, repository_cache.c_str(), -1, SQLITE_STATIC);
-            sqlite3_bind_int(statement, 2, repository_id);
-        }
-    );
+    db_connection.prepare(
+        "UPDATE repositories SET cache = ? WHERE id = ?;"
+    )
+    .bind_text(1, repository_cache.c_str())
+    .bind_int(2, repository_id)
+    .execute();
 }

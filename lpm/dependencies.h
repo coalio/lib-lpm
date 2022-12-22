@@ -11,7 +11,7 @@ namespace LPM::Dependencies {
     typedef std::pair<std::string, std::string> Dependency;
 
     // Contains package information necessary for installation
-    class PackageInformation {
+    class PackageData {
     public:
         std::string name;
         std::string version;
@@ -20,7 +20,7 @@ namespace LPM::Dependencies {
         std::string package_type;
         int repository_id;
 
-        PackageInformation(
+        PackageData(
             const std::string& _name,
             const std::string& _version,
             const std::string& _manifest_url,
@@ -32,11 +32,10 @@ namespace LPM::Dependencies {
             repository_id(std::stoi(_repository_id))
         {}
 
-        PackageInformation() = default;
+        PackageData() = default;
     };
 
-
-    PackageInformation* find_dependency(
+    PackageData find_dependency(
         Dependency& dependency,
         std::vector<
             std::map<std::string, std::string>
@@ -46,12 +45,12 @@ namespace LPM::Dependencies {
     bool insert_into_db(
         DB::SQLite3& db_connection,
         const std::string& package_hash,
-        PackageInformation& package_info
+        PackageData& package_info
     );
 
     bool add(
         DB::SQLite3& db_connection,
-        PackageInformation*& package,
+        PackageData& package,
         std::string cache_path,
         std::string package_path,
         std::string& error
@@ -65,6 +64,6 @@ namespace LPM::Dependencies {
     bool insert_into_db(
         DB::SQLite3& db_connection,
         const std::string& package_hash,
-        PackageInformation*& package_info
+        PackageData& package_info
     );
 }

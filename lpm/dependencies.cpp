@@ -13,7 +13,7 @@
 #include "hashing.h"
 #include "db.h"
 
-LPM::Dependencies::PackageInformation*
+LPM::Dependencies::PackageData
 LPM::Dependencies::find_dependency(
     Dependency& dependency,
     std::vector<
@@ -33,7 +33,7 @@ LPM::Dependencies::find_dependency(
             LPM_PRINT_ERROR("No cache path found for repository: " << repository["name"]);
             LPM_PRINT_ERROR("Please make sure all repositories are cached before browsing them");
 
-            return NULL;
+            return {};
         }
 
         LPM_PRINT_DEBUG("Loading manifest from: " << repository_cache);
@@ -135,52 +135,40 @@ LPM::Dependencies::find_dependency(
                 LPM_PRINT_DEBUG("Version " << dependency.second << " of " << dependency.first << " is defined");
             }
 
-            auto package_info = new PackageInformation(
+            return PackageData(
                 package.name,
                 package_version,
                 package_manifest_url,
                 repository["id"]
             );
-
-            return package_info;
         }
     }
 
-    return NULL;
+    return {};
 }
 
 bool LPM::Dependencies::insert_into_db(
     DB::SQLite3& db_connection,
     const std::string& package_hash,
-    PackageInformation*& package_info
+    PackageData& package_info
 ) {
     // Insert a package into the database
-    try {
-        db_connection.execute(
-            "INSERT INTO dependencies (id, name, version, repository) VALUES (?, ?, ?, ?);",
-            [&](sqlite3_stmt* stmt) {
-                sqlite3_bind_text(stmt, 1, package_hash.c_str(), -1, SQLITE_STATIC);
-                sqlite3_bind_text(stmt, 2, package_info->name.c_str(), -1, SQLITE_STATIC);
-                sqlite3_bind_text(stmt, 3, package_info->version.c_str(), -1, SQLITE_STATIC);
-                sqlite3_bind_int(stmt, 4, package_info->repository_id);
-            }
-        );
+    LPM_PRINT_DEBUG("Inserting package " << package_info.name << ":" << package_hash << " into database");
+    db_connection.prepare(
+        "INSERT INTO packages (id, name, version, repository) VALUES (?, ?, ?, ?);"
+    )
+    .bind_text(1, package_hash.c_str())
+    .bind_text(2, package_info.name.c_str())
+    .bind_text(3, package_info.version.c_str())
+    .bind_int(4, package_info.repository_id)
+    .execute();
 
-        return true;
-    } catch (...) {
-        LPM_PRINT_ERROR(
-            "Failed to insert package " <<
-            package_info->name << " (" << package_hash << ") "
-            "into database"
-        );
-
-        return false;
-    }
+    return true;
 }
 
 bool LPM::Dependencies::add(
     LPM::DB::SQLite3& db_connection,
-    PackageInformation*& package,
+    PackageData& package,
 
     std::string cache_path,
     std::string package_path,
@@ -191,11 +179,11 @@ bool LPM::Dependencies::add(
     // the packages db
     LPM_PRINT_DEBUG(
         "Adding dependency " <<
-        package->name << ":" <<
-        package->version
+        package.name << ":" <<
+        package.version
     );
 
-    if (package->package_type == "zip") {
+    if (package.package_type == "zip") {
         Requests::Response response;
 
         try {
@@ -206,12 +194,12 @@ bool LPM::Dependencies::add(
                 return false;
             }
 
-            response = Requests::get(package->package_url, curl_handle.get());
+            response = Requests::get(package.package_url, curl_handle.get());
 
             if (response.status_code != 200) {
                 error =
                     "Failed to download package from url '" +
-                    package->package_url + "': " +
+                    package.package_url + "': " +
                     std::to_string(response.status_code);
 
                 return false;
@@ -219,7 +207,7 @@ bool LPM::Dependencies::add(
         } catch (const std::exception& e) {
             error =
                 "Exception occurred while trying to download package from url '" +
-                package->package_url + "': " +
+                package.package_url + "': " +
                 e.what();
 
             return false;
@@ -286,9 +274,12 @@ bool LPM::Dependencies::is_added(
     // Check if the directory at package_path exists
     // This is done like this because users can manually
     // install a package in the expected location if they're
-    // desired to do so
-    if (!Utils::fs::exists(package_path)) {
-        return false;
+    // desired to do so (even if it's not recommended)
+    LPM_PRINT_DEBUG("Checking if package at " << package_path << " is added");
+    bool is_physically_installed = false;
+    if (Utils::fs::exists(package_path)) {
+        LPM_PRINT_DEBUG("Package at " << package_path << " is added");
+        is_physically_installed = true;
     }
 
     // Check if the package is already added to the database
@@ -296,17 +287,29 @@ bool LPM::Dependencies::is_added(
 
     // todo:: try using EXISTS() function instead of a raw select 1
     bool is_in_db = false;
-    db_connection.execute(
-        "SELECT 1 FROM packages WHERE id = ?;",
-        [&](sqlite3_stmt* stmt) {
-            // Check if stmt is OK (callback executed before running the query)
-            if (sqlite3_column_type(stmt, 0) == SQLITE_OK) {
-                sqlite3_bind_text(stmt, 1, package_hash.c_str(), -1, SQLITE_STATIC);
-            } else {
-                is_in_db = true;
-            }
-        }
-    );
+    db_connection.prepare(
+        "SELECT 1 FROM packages WHERE id = ?;"
+    )
+    .bind_text(1, package_hash.c_str())
+    .execute([&](sqlite3_stmt* stmt) {
+        // Lambda is only called when a row was found
+        is_in_db = true;
+    });
+
+    LPM_PRINT_DEBUG("Package " << package_path << " is " << (is_in_db ? "already" : "not") << " added to the db");
+
+    if (is_in_db && !is_physically_installed) {
+        // This package is in the db but not physically installed,
+        // so we should remove it from the db
+        LPM_PRINT_DEBUG("Removing package " << package_path << " from db");
+        db_connection.prepare(
+            "DELETE FROM packages WHERE id = ?;"
+        )
+        .bind_text(1, package_hash.c_str())
+        .execute();
+
+        return false;
+    }
 
     return is_in_db;
 }

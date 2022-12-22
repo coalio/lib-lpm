@@ -24,10 +24,9 @@ namespace LPM {
                 return;
             }
 
-            _destructor(_object);
-
             if (_object != nullptr) {
-                LPM_PRINT_DEBUG("scope_destructor initialized for object " << _object);
+                _destructor(_object);
+                LPM_PRINT_DEBUG("scope_destructor called for object " << _object);
             }
         }
 

@@ -2,7 +2,6 @@
 # You can compile this lib independently and use it in your own projects.
 include_directories(./lpm ./dependencies)
 add_library(lpm-lib
-    lpm/db.cpp
     lpm/dependencies.cpp
     lpm/manifests.cpp
     lpm/repositories.cpp
@@ -12,4 +11,5 @@ add_library(lpm-lib
     lpm/utils.cpp
     lpm/hashing.cpp
     lpm/env.cpp
+    lpm/db.cpp
 )
